@@ -34,6 +34,7 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: var(--bg-page); color: var(--text-main); font-family: 'DM Sans', sans-serif; }
+  body.native-tabbar .tab-bar { display:none; }
   ::-webkit-scrollbar { width: 3px; height: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--bg-muted); border-radius: 99px; }
@@ -1892,6 +1893,17 @@ function switchTab(tab) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   render({ preserveScroll: false });
   updateTabBadges();
+  notifyNativeTabChange(tab);
+}
+
+function enableNativeTabBar() {
+  document.body.classList.add("native-tabbar");
+}
+
+function notifyNativeTabChange(tab) {
+  try {
+    window.webkit?.messageHandlers?.tabChanged?.postMessage(tab);
+  } catch {}
 }
 
 function getScrollContainer(selector) {

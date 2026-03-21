@@ -29,11 +29,14 @@
     --safe-top:env(safe-area-inset-top, 0px);
     --safe-right:env(safe-area-inset-right, 0px);
     --safe-bottom:env(safe-area-inset-bottom, 0px);
+    --safe-bottom-fallback:0px;
     --bottom-nav-gap:0px;
     --safe-left:env(safe-area-inset-left, 0px);
+    --app-height:100dvh;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg-page); color: var(--text-main); font-family: 'DM Sans', sans-serif; }
+  html { height: 100%; height: -webkit-fill-available; background: var(--bg-page); }
+  body { min-height: 100%; min-height: -webkit-fill-available; background: var(--bg-page); color: var(--text-main); font-family: 'DM Sans', sans-serif; }
   body.native-tabbar .tab-bar { display:none; }
   ::-webkit-scrollbar { width: 3px; height: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -48,7 +51,7 @@
   @keyframes badgePop { 0%{transform:scale(0)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
 
   /* ── Layout ── */
-  .app        { background:var(--bg-page); position:fixed; top:0; left:0; right:0; bottom:0; max-width:480px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; }
+  .app        { background:var(--bg-page); position:fixed; inset:0; width:100%; height:var(--app-height); min-height:-webkit-fill-available; max-width:480px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; }
   .header     { position:relative; display:flex; align-items:center; justify-content:space-between; padding:calc(var(--safe-top) + 12px) 16px 9px; border-bottom:1px solid rgba(42,42,60,.9); flex-shrink:0; background:
     radial-gradient(circle at top left, rgba(0,255,136,.08), transparent 34%),
     linear-gradient(180deg, rgba(17,17,25,.96), rgba(13,13,22,.92)); overflow:hidden; }
@@ -63,7 +66,7 @@
   .tab-content { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 
   /* ── Tab Bar ── */
-  .tab-bar    { position:relative; display:flex; align-items:stretch; min-height:54px; background:rgba(18, 18, 24, .94); border-top:1px solid rgba(255,255,255,.08); box-shadow:0 -10px 24px rgba(0,0,0,.24); backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); flex-shrink:0; padding:0 var(--safe-right) var(--safe-bottom) var(--safe-left); }
+  .tab-bar    { position:relative; display:flex; align-items:stretch; min-height:54px; background:rgba(18, 18, 24, .94); border-top:1px solid rgba(255,255,255,.08); box-shadow:0 -10px 24px rgba(0,0,0,.24); backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); flex-shrink:0; padding:0 var(--safe-right) max(var(--safe-bottom), var(--safe-bottom-fallback)) var(--safe-left); }
   .tab-bar::before { content:""; position:absolute; top:0; left:0; right:0; height:1px; background:rgba(255,255,255,.06); pointer-events:none; }
   .tab-btn    { flex:1; min-height:54px; background:none; border:none; cursor:pointer; padding:9px 8px 7px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#8e8e93; transition:color .18s ease, opacity .18s ease; position:relative; opacity:.92; }
   .tab-btn.active { color:#f2f2f7; opacity:1; }
@@ -3014,17 +3017,45 @@ function forceViewportRecalc() {
   });
 }
 
+function syncViewportMetrics() {
+  const root = document.documentElement;
+  if (!root) return;
+
+  const viewportHeight = window.visualViewport?.height || window.innerHeight || root.clientHeight;
+  root.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
+
+  const envProbe = document.createElement("div");
+  envProbe.style.position = "absolute";
+  envProbe.style.visibility = "hidden";
+  envProbe.style.pointerEvents = "none";
+  envProbe.style.height = "0";
+  envProbe.style.paddingBottom = "env(safe-area-inset-bottom)";
+  document.body.appendChild(envProbe);
+  const envSafeBottom = parseFloat(getComputedStyle(envProbe).paddingBottom) || 0;
+  envProbe.remove();
+
+  // In some iOS fullscreen/PWA cases env() reports 0 even though the home indicator inset exists.
+  const fallbackSafeBottom = envSafeBottom > 0 ? 0 : Math.max(0, window.innerHeight - viewportHeight);
+  root.style.setProperty("--safe-bottom-fallback", `${Math.round(fallbackSafeBottom)}px`);
+}
+
+syncViewportMetrics();
 forceViewportRecalc();
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
+    syncViewportMetrics();
     forceViewportRecalc();
   }
 });
 
 window.addEventListener("resize", () => {
+  syncViewportMetrics();
   forceViewportRecalc();
 });
+
+window.visualViewport?.addEventListener("resize", syncViewportMetrics);
+window.visualViewport?.addEventListener("scroll", syncViewportMetrics);
 
 /* ═══════════════════════════════════════════════════════════════
    INIT
@@ -3048,6 +3079,7 @@ window.addEventListener("resize", () => {
   await loadLastVisited();
   setupNotificationPermissionPrompt();
   render();
+  syncViewportMetrics();
   forceViewportRecalc();
   setupPullToRefresh();
   setupScrollWatcher();

@@ -65,7 +65,7 @@
   .tab-content { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 
   /* ── Tab Bar ── */
-  .tab-bar    { position:relative; display:flex; align-items:stretch; min-height:54px; background:rgba(18, 18, 24, .94); border-top:1px solid rgba(255,255,255,.08); box-shadow:0 -10px 24px rgba(0,0,0,.24); backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); flex-shrink:0; padding:4px var(--safe-right) max(var(--safe-bottom), var(--safe-bottom-fallback)) var(--safe-left); }
+  .tab-bar    { position:relative; display:flex; align-items:stretch; min-height:54px; background:rgba(18, 18, 24, .94); border-top:1px solid rgba(255,255,255,.08); box-shadow:0 -10px 24px rgba(0,0,0,.24); backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); flex-shrink:0; padding:10px var(--safe-right) max(var(--safe-bottom), var(--safe-bottom-fallback)) var(--safe-left); }
   .tab-bar::before { content:""; position:absolute; top:0; left:0; right:0; height:1px; background:rgba(255,255,255,.06); pointer-events:none; }
   .tab-btn    { flex:1; min-height:54px; background:none; border:none; cursor:pointer; padding:9px 8px 7px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#8e8e93; transition:color .18s ease, opacity .18s ease; position:relative; opacity:.92; }
   .tab-btn.active { color:#f2f2f7; opacity:1; }

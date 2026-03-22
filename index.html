@@ -78,16 +78,14 @@
   /* ── PWA Standalone bottom-gap fix (iPhone home indicator) ── */
   @media (display-mode: standalone) {
     html, body { background:#121217 !important; }
-    .tab-bar { padding-bottom:max(var(--safe-bottom), var(--safe-bottom-fallback), 20px) !important; }
-    .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 40px); background:#121217; z-index:0; pointer-events:none; }
-    .tab-bar { position:relative; z-index:1; }
+    .tab-bar { padding-bottom:var(--safe-bottom) !important; position:relative; z-index:1; }
+    .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 0px); background:#121217; z-index:0; pointer-events:none; }
   }
   @supports (-webkit-touch-callout: none) {
     /* iOS-specific: also target navigator.standalone via the apple meta tag */
     html.pwa-standalone, html.pwa-standalone body { background:#121217 !important; }
-    html.pwa-standalone .tab-bar { padding-bottom:max(var(--safe-bottom), var(--safe-bottom-fallback), 20px) !important; }
-    html.pwa-standalone .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 40px); background:#121217; z-index:0; pointer-events:none; }
-    html.pwa-standalone .tab-bar { position:relative; z-index:1; }
+    html.pwa-standalone .tab-bar { padding-bottom:var(--safe-bottom) !important; position:relative; z-index:1; }
+    html.pwa-standalone .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 0px); background:#121217; z-index:0; pointer-events:none; }
   }
 
   /* ── Search ── */
@@ -3061,6 +3059,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     syncViewportMetrics();
     forceViewportRecalc();
+    render();
   }
 });
 

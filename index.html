@@ -33,7 +33,7 @@
     --bottom-nav-gap:0px;
     --tab-bar-height:88px;
     --tab-bar-side-gap:14px;
-    --tab-bar-bottom-pad:12px;
+    --tab-bar-bottom-pad:4px;
     --tab-bar-inner-pad:8px;
     --tab-bar-button-height:60px;
     --tab-bar-icon-size:20px;
@@ -170,15 +170,13 @@
   /* ── PWA Standalone bottom-gap fix (iPhone home indicator) ── */
   @media (display-mode: standalone) {
     html, body { background:#121217 !important; }
-    .tab-bar { padding-bottom:max(calc(var(--safe-bottom) + var(--tab-bar-bottom-pad)), calc(var(--safe-bottom-fallback) + var(--tab-bar-bottom-pad)), 20px) !important; }
-    .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 40px); background:#121217; z-index:0; pointer-events:none; }
+    .tab-bar { padding-bottom:max(var(--safe-bottom), var(--safe-bottom-fallback), 0px) !important; }
     .tab-bar { position:relative; z-index:1; }
   }
   @supports (-webkit-touch-callout: none) {
     /* iOS-specific: also target navigator.standalone via the apple meta tag */
     html.pwa-standalone, html.pwa-standalone body { background:#121217 !important; }
-    html.pwa-standalone .tab-bar { padding-bottom:max(calc(var(--safe-bottom) + var(--tab-bar-bottom-pad)), calc(var(--safe-bottom-fallback) + var(--tab-bar-bottom-pad)), 20px) !important; }
-    html.pwa-standalone .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 40px); background:#121217; z-index:0; pointer-events:none; }
+    html.pwa-standalone .tab-bar { padding-bottom:max(var(--safe-bottom), var(--safe-bottom-fallback), 0px) !important; }
     html.pwa-standalone .tab-bar { position:relative; z-index:1; }
   }
 
@@ -502,7 +500,7 @@
     :root {
       --tab-bar-height:92px;
       --tab-bar-side-gap:16px;
-      --tab-bar-bottom-pad:14px;
+      --tab-bar-bottom-pad:5px;
       --tab-bar-inner-pad:9px;
       --tab-bar-button-height:64px;
       --tab-bar-icon-size:22px;
@@ -518,7 +516,7 @@
       --bottom-nav-gap:0px;
       --tab-bar-height:84px;
       --tab-bar-side-gap:12px;
-      --tab-bar-bottom-pad:10px;
+      --tab-bar-bottom-pad:3px;
       --tab-bar-inner-pad:7px;
       --tab-bar-button-height:58px;
       --tab-bar-icon-size:19px;
@@ -570,7 +568,7 @@
     :root {
       --tab-bar-height:90px;
       --tab-bar-side-gap:14px;
-      --tab-bar-bottom-pad:13px;
+      --tab-bar-bottom-pad:4px;
       --tab-bar-inner-pad:8px;
       --tab-bar-button-height:62px;
       --tab-bar-icon-size:21px;
@@ -582,7 +580,7 @@
     :root {
       --tab-bar-height:96px;
       --tab-bar-side-gap:18px;
-      --tab-bar-bottom-pad:15px;
+      --tab-bar-bottom-pad:6px;
       --tab-bar-inner-pad:10px;
       --tab-bar-button-height:66px;
       --tab-bar-icon-size:22px;

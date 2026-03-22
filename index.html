@@ -65,9 +65,9 @@
   .tab-content { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 
   /* ── Tab Bar ── */
-  .tab-bar    { position:relative; display:flex; align-items:stretch; min-height:54px; background:rgba(18, 18, 24, .94); border-top:1px solid rgba(255,255,255,.08); box-shadow:0 -10px 24px rgba(0,0,0,.24); backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); flex-shrink:0; padding:10px var(--safe-right) max(var(--safe-bottom), var(--safe-bottom-fallback)) var(--safe-left); }
+  .tab-bar    { position:relative; display:flex; align-items:stretch; min-height:49px; background:rgba(18, 18, 24, .94); border-top:1px solid rgba(255,255,255,.08); box-shadow:0 -10px 24px rgba(0,0,0,.24); backdrop-filter:blur(24px) saturate(1.2); -webkit-backdrop-filter:blur(24px) saturate(1.2); flex-shrink:0; padding:0 var(--safe-right) max(var(--safe-bottom), var(--safe-bottom-fallback)) var(--safe-left); }
   .tab-bar::before { content:""; position:absolute; top:0; left:0; right:0; height:1px; background:rgba(255,255,255,.06); pointer-events:none; }
-  .tab-btn    { flex:1; min-height:54px; background:none; border:none; cursor:pointer; padding:9px 8px 7px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#8e8e93; transition:color .18s ease, opacity .18s ease; position:relative; opacity:.92; }
+  .tab-btn    { flex:1; min-height:49px; background:none; border:none; cursor:pointer; padding:6px 8px 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:#8e8e93; transition:color .18s ease, opacity .18s ease; position:relative; opacity:.92; }
   .tab-btn.active { color:#f2f2f7; opacity:1; }
   .tab-btn.active::before { content:none; }
   .tab-btn svg { width:20px; height:20px; }
@@ -78,14 +78,11 @@
   /* ── PWA Standalone bottom-gap fix (iPhone home indicator) ── */
   @media (display-mode: standalone) {
     html, body { background:#121217 !important; }
-    .tab-bar { padding-bottom:var(--safe-bottom) !important; position:relative; z-index:1; }
-    .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 0px); background:#121217; z-index:0; pointer-events:none; }
+    .tab-bar { padding-bottom:var(--safe-bottom) !important; }
   }
   @supports (-webkit-touch-callout: none) {
-    /* iOS-specific: also target navigator.standalone via the apple meta tag */
     html.pwa-standalone, html.pwa-standalone body { background:#121217 !important; }
-    html.pwa-standalone .tab-bar { padding-bottom:var(--safe-bottom) !important; position:relative; z-index:1; }
-    html.pwa-standalone .app::after { content:""; position:fixed; bottom:0; left:0; right:0; height:env(safe-area-inset-bottom, 0px); background:#121217; z-index:0; pointer-events:none; }
+    html.pwa-standalone .tab-bar { padding-bottom:var(--safe-bottom) !important; }
   }
 
   /* ── Search ── */
@@ -405,8 +402,8 @@
     .card-thumb { width:78px; height:78px; }
     .sources-tab { padding-left:20px; padding-right:20px; }
     .sources-hero { padding:18px 20px; }
-    .tab-bar { min-height:56px; }
-    .tab-btn { min-height:56px; padding:10px 8px 8px; gap:4px; }
+    .tab-bar { min-height:49px; }
+    .tab-btn { min-height:49px; padding:6px 8px 4px; gap:2px; }
     .tab-btn svg { width:22px; height:22px; }
     .tab-label { font-size:10px; letter-spacing:0; }
     .scroll-top-btn {
@@ -451,8 +448,8 @@
     .sources-toolbar { flex-direction:column; align-items:stretch; }
     .source-actions { justify-content:flex-start; }
     .source-action-btn { flex:1; min-width:0; }
-    .tab-bar { min-height:52px; }
-    .tab-btn { min-height:52px; padding:8px 6px 6px; gap:3px; }
+    .tab-bar { min-height:49px; }
+    .tab-btn { min-height:49px; padding:6px 8px 4px; gap:2px; }
     .tab-btn svg { width:19px; height:19px; }
     .tab-label { font-size:10px; }
     .scroll-top-btn { width:38px; height:38px; }

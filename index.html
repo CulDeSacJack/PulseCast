@@ -62,12 +62,10 @@ header{padding:20px 20px 0;flex-shrink:0}
 .x-cat-list{display:none}.x-cat-list.open{display:block}
 .x-account{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:background .15s}
 .x-account:hover{background:var(--surface2)}
-.x-account.expanded{border-color:var(--xblue);background:var(--surface2)}
 .x-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1d9bf022,#1d9bf011);border:1px solid #1d9bf033;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--xblue);font-weight:700;font-size:14px}
 .x-info{flex:1;min-width:0}
 .x-name{font-size:13px;font-weight:600;color:var(--text)}
 .x-handle{font-size:11px;color:var(--xblue);font-family:'JetBrains Mono',monospace}
-.x-embed-wrap{margin:0 0 6px;border-radius:10px;overflow:hidden;max-height:500px;overflow-y:auto}
 .empty{text-align:center;padding:60px 20px;color:var(--text2)}
 .empty-icon{font-size:40px;margin-bottom:12px}
 .empty-title{font-size:15px;font-weight:600;margin-bottom:4px}
@@ -105,7 +103,7 @@ header{padding:20px 20px 0;flex-shrink:0}
     <div class="section" id="sec-saved"></div>
   </div>
 </div>
-<script async src="https://platform.twitter.com/widgets.js"></script>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 <script>
 const NEWS_SOURCES=[
   {id:"ign",name:"IGN",color:"#ff4500",rss:"https://feeds.feedburner.com/ign/all"},
@@ -223,7 +221,7 @@ const X_ACCOUNTS={
     {name:"Marvel Games",handle:"marvelgames"},
   ],
 };
-let articles=[],activeSection="news",activeFilter="All",searchQuery="",bookmarks={},loadedCount=0,isLoading=false,expandedX=null,openCategories={},renderLimit=30;
+let articles=[],activeSection="news",activeFilter="All",searchQuery="",bookmarks={},loadedCount=0,isLoading=false,openCategories={},renderLimit=30;
 
 function loadBookmarks(){try{const b=localStorage.getItem("gp2_bookmarks");if(b)bookmarks=JSON.parse(b)}catch{}}
 function saveBookmarks(){try{localStorage.setItem("gp2_bookmarks",JSON.stringify(bookmarks))}catch{}}
@@ -281,20 +279,19 @@ function renderNews(){
 }
 
 function renderSocial(){
-  const el=document.getElementById("sec-social"),q=searchQuery.toLowerCase();let html="";
+  const el=document.getElementById("sec-social"),q=searchQuery.toLowerCase();let html=`<div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"><a class="twitter-timeline" data-theme="dark" data-height="400" href="https://twitter.com/Wario64?ref_src=twsrc%5Etfw">Tweets by Wario64</a></div>`;
   Object.entries(X_ACCOUNTS).forEach(([cat,accounts])=>{
     const f=accounts.filter(a=>!q||a.name.toLowerCase().includes(q)||a.handle.toLowerCase().includes(q));if(!f.length)return;
     const isOpen=openCategories[cat]!==false;
     html+=`<div><div class="x-cat-head${isOpen?" open":""}" onclick="toggleCat('${esc(cat)}')"><span class="x-cat-label">${esc(cat)}</span><span class="x-cat-count">${f.length}</span><span class="x-cat-chevron">›</span></div><div class="x-cat-list${isOpen?" open":""}">`;
-    f.forEach(a=>{const exp=expandedX===a.handle;
-      html+=`<div class="x-account${exp?" expanded":""}" onclick="toggleX('${esc(a.handle)}')"><div class="x-avatar">${a.name[0]}</div><div class="x-info"><div class="x-name">${esc(a.name)}</div><div class="x-handle">@${esc(a.handle)}</div></div></div>`;
-      if(exp)html+=`<div class="x-embed-wrap" id="embed-${esc(a.handle)}"><a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-height="400" href="https://twitter.com/${esc(a.handle)}">Loading @${esc(a.handle)}…</a></div>`;
+    f.forEach(a=>{
+      html+=`<a href="https://x.com/${esc(a.handle)}" target="_blank" rel="noopener noreferrer" style="display:block"><div class="x-account"><div class="x-avatar">${a.name[0]}</div><div class="x-info"><div class="x-name">${esc(a.name)}</div><div class="x-handle">@${esc(a.handle)}</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8888a0" stroke-width="2" style="flex-shrink:0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></div></a>`;
     });
     html+=`</div></div>`;
   });
   if(!html)html=`<div class="empty"><div class="empty-icon">🐦</div><div class="empty-title">No accounts match</div></div>`;
   el.innerHTML=html;
-  if(expandedX&&window.twttr?.widgets)setTimeout(()=>twttr.widgets.load(),100);
+  if(window.twttr?.widgets)twttr.widgets.load(el);
 }
 
 function renderSaved(){
@@ -308,7 +305,6 @@ function showSection(n){activeSection=n;searchQuery="";renderLimit=30;document.g
 function setFilter(n){activeFilter=n;renderLimit=30;renderPills();renderNews()}
 function toggleSave(id){if(bookmarks[id])delete bookmarks[id];else{const a=articles.find(x=>x.id===id);if(a)bookmarks[id]={...a,date:a.date?.toISOString?.(),savedAt:Date.now()}}saveBookmarks();if(activeSection==="news")renderNews();else renderSaved()}
 function toggleCat(c){openCategories[c]=openCategories[c]===false?true:false;renderSocial()}
-function toggleX(h){expandedX=expandedX===h?null:h;renderSocial()}
 
 document.getElementById("searchInput").addEventListener("input",e=>{searchQuery=e.target.value;document.getElementById("clearSearch").style.display=searchQuery?"block":"none";renderLimit=30;if(activeSection==="news")renderNews();else if(activeSection==="social")renderSocial();else renderSaved()});
 document.getElementById("clearSearch").addEventListener("click",()=>{searchQuery="";document.getElementById("searchInput").value="";document.getElementById("clearSearch").style.display="none";renderLimit=30;if(activeSection==="news")renderNews();else if(activeSection==="social")renderSocial();else renderSaved()});

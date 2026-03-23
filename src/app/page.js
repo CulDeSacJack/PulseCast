@@ -24,31 +24,40 @@ function getTopStories(articles) {
   const cutoff = Date.now() - 12 * 60 * 60 * 1000;
   const recent = articles.filter(a => a.date && a.date.getTime() >= cutoff);
   if (recent.length < 4) return [];
-
   const clusters = [];
   const used = new Set();
-
   recent.forEach((a, i) => {
     if (used.has(i)) return;
     const kw = extractKeywords(a.title);
     if (kw.length < 2) return;
     const group = [{ article: a, idx: i }];
-
     recent.forEach((b, j) => {
       if (i === j || used.has(j)) return;
       const bkw = extractKeywords(b.title);
       const shared = kw.filter(w => bkw.includes(w));
       if (shared.length >= 2 && a.source !== b.source) group.push({ article: b, idx: j });
     });
-
     const sources = new Set(group.map(g => g.article.source));
     if (sources.size >= 3) {
       group.forEach(g => used.add(g.idx));
       clusters.push({ rep: group[0].article, count: sources.size, sources: [...sources] });
     }
   });
-
   return clusters.sort((a, b) => b.count - a.count).slice(0, 3);
+}
+
+function getTrendingKeywords(articles) {
+  const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+  const recent = articles.filter(a => a.date && a.date.getTime() >= cutoff);
+  const counts = {};
+  recent.forEach(a => {
+    extractKeywords(a.title).forEach(w => { counts[w] = (counts[w] || 0) + 1; });
+  });
+  return Object.entries(counts)
+    .filter(([, n]) => n >= 3)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([word]) => word);
 }
 
 /* ═══════════════════════════════════════════
@@ -77,7 +86,6 @@ function getTimeAgo(date) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-// For saved articles: shows relative time if recent, otherwise a real date
 function getDateLabel(date) {
   const d = date instanceof Date ? date : parseDate(date);
   if (!d || isNaN(d.getTime()) || d.getTime() === 0) return "";
@@ -100,53 +108,55 @@ function withTimeout(promise, ms) {
    SOURCES
 ═══════════════════════════════════════════ */
 const NEWS_SOURCES = [
-  { name: "IGN", color: "#ff4500", url: "https://feeds.feedburner.com/ign/all" },
-  { name: "GameSpot", color: "#00c853", url: "https://www.gamespot.com/feeds/news/" },
-  { name: "PC Gamer", color: "#4fc3f7", url: "https://www.pcgamer.com/rss/" },
-  { name: "Kotaku", color: "#f43f5e", url: "https://kotaku.com/rss" },
-  { name: "Eurogamer", color: "#a855f7", url: "https://www.eurogamer.net/feed" },
-  { name: "VGC", color: "#eab308", url: "https://www.videogameschronicle.com/feed/" },
-  { name: "The Verge", color: "#ff4081", url: "https://www.theverge.com/games/rss/index.xml" },
-  { name: "Insider Gaming", color: "#00e5ff", url: "https://insider-gaming.com/feed/" },
-  { name: "GamesRadar", color: "#f5a623", url: "https://www.gamesradar.com/rss/" },
-  { name: "Game Informer", color: "#d4af37", url: "https://gameinformer.com/rss.xml" },
-  { name: "Game Rant", color: "#14b8a6", url: "https://gamerant.com/feed/" },
-  { name: "Push Square", color: "#3b82f6", url: "https://www.pushsquare.com/feeds/latest" },
-  { name: "Nintendo Life", color: "#e60012", url: "https://www.nintendolife.com/feeds/latest" },
+  { name: "IGN",            color: "#ff4500", platform: null,           url: "https://feeds.feedburner.com/ign/all" },
+  { name: "GameSpot",       color: "#00c853", platform: null,           url: "https://www.gamespot.com/feeds/news/" },
+  { name: "PC Gamer",       color: "#4fc3f7", platform: "PC",           url: "https://www.pcgamer.com/rss/" },
+  { name: "Kotaku",         color: "#f43f5e", platform: null,           url: "https://kotaku.com/rss" },
+  { name: "Eurogamer",      color: "#a855f7", platform: null,           url: "https://www.eurogamer.net/feed" },
+  { name: "VGC",            color: "#eab308", platform: null,           url: "https://www.videogameschronicle.com/feed/" },
+  { name: "The Verge",      color: "#ff4081", platform: "Xbox",         url: "https://www.theverge.com/games/rss/index.xml" },
+  { name: "Insider Gaming", color: "#00e5ff", platform: "Xbox",         url: "https://insider-gaming.com/feed/" },
+  { name: "GamesRadar",     color: "#f5a623", platform: null,           url: "https://www.gamesradar.com/rss/" },
+  { name: "Game Informer",  color: "#d4af37", platform: null,           url: "https://gameinformer.com/rss.xml" },
+  { name: "Game Rant",      color: "#14b8a6", platform: null,           url: "https://gamerant.com/feed/" },
+  { name: "Push Square",    color: "#3b82f6", platform: "PlayStation",  url: "https://www.pushsquare.com/feeds/latest" },
+  { name: "Nintendo Life",  color: "#e60012", platform: "Nintendo",     url: "https://www.nintendolife.com/feeds/latest" },
 ];
 
+const PLATFORM_FILTERS = ["All", "PlayStation", "Xbox", "Nintendo", "PC"];
+
 const BSKY_ACCOUNTS = [
-  { name: "Wario64", handle: "wario64.bsky.social", group: "Deals" },
-  { name: "CheapAssGamer", handle: "cheapassgamer.com", group: "Deals" },
-  { name: "OW Calvary", handle: "owcavalry.com", group: "Deals" },
-  { name: "Jason Schreier", handle: "jasonschreier.bsky.social", group: "Press" },
-  { name: "Tom Warren", handle: "tomwarren.co.uk", group: "Press" },
-  { name: "Geoff Keighley", handle: "geoffkeighley.bsky.social", group: "Press" },
-  { name: "Shinobi602", handle: "shinobi602.bsky.social", group: "Press" },
-  { name: "Stealth40k", handle: "stealth40k.bsky.social", group: "Press" },
-  { name: "Knoebel", handle: "knoebel.bsky.social", group: "Press" },
-  { name: "Mat Piscatella", handle: "matpiscatella.bsky.social", group: "Press" },
-  { name: "Digital Foundry", handle: "digitalfoundry.bsky.social", group: "Press" },
-  { name: "Polygon", handle: "polygon.com", group: "Press" },
-  { name: "IGN", handle: "ign.com", group: "Press" },
-  { name: "Eurogamer", handle: "eurogamer.bsky.social", group: "Press" },
-  { name: "Gematsu", handle: "gematsu.com", group: "Press" },
-  { name: "GamesIndustry", handle: "gibiz.bsky.social", group: "Press" },
-  { name: "Hazzadorgamin", handle: "hazzadorgamin.bsky.social", group: "Press" },
-  { name: "VGC", handle: "videogameschronicle.com", group: "Press" },
-  { name: "Xbox", handle: "xbox.com", group: "Xbox" },
-  { name: "Game Pass", handle: "gamepass.xbox.com", group: "Xbox" },
-  { name: "PlayStation", handle: "playstation.com", group: "PlayStation" },
-  { name: "Nintendo Life", handle: "nintendolife.com", group: "Nintendo" },
-  { name: "Steam", handle: "steampowered.com", group: "PC" },
-  { name: "Capcom USA", handle: "capcomusa.com", group: "Dev" },
-  { name: "Remedy", handle: "remedygames.com", group: "Dev" },
-  { name: "Devolver", handle: "devolverdigital.com", group: "Dev" },
-  { name: "Supergiant", handle: "supergiantgames.bsky.social", group: "Dev" },
-  { name: "RGG Studio", handle: "rggwest.bsky.social", group: "Dev" },
-  { name: "Square Enix", handle: "square-enix-games.com", group: "Dev" },
-  { name: "Focus Ent.", handle: "focus-entmt.com", group: "Dev" },
-  { name: "Sucker Punch", handle: "suckerpunchprod.bsky.social", group: "Dev" },
+  { name: "Wario64",        handle: "wario64.bsky.social",           group: "Deals" },
+  { name: "CheapAssGamer",  handle: "cheapassgamer.com",             group: "Deals" },
+  { name: "OW Calvary",     handle: "owcavalry.com",                 group: "Deals" },
+  { name: "Jason Schreier", handle: "jasonschreier.bsky.social",     group: "Press" },
+  { name: "Tom Warren",     handle: "tomwarren.co.uk",               group: "Press" },
+  { name: "Geoff Keighley", handle: "geoffkeighley.bsky.social",     group: "Press" },
+  { name: "Shinobi602",     handle: "shinobi602.bsky.social",        group: "Press" },
+  { name: "Stealth40k",     handle: "stealth40k.bsky.social",        group: "Press" },
+  { name: "Knoebel",        handle: "knoebel.bsky.social",           group: "Press" },
+  { name: "Mat Piscatella", handle: "matpiscatella.bsky.social",     group: "Press" },
+  { name: "Digital Foundry",handle: "digitalfoundry.bsky.social",    group: "Press" },
+  { name: "Polygon",        handle: "polygon.com",                   group: "Press" },
+  { name: "IGN",            handle: "ign.com",                       group: "Press" },
+  { name: "Eurogamer",      handle: "eurogamer.bsky.social",         group: "Press" },
+  { name: "Gematsu",        handle: "gematsu.com",                   group: "Press" },
+  { name: "GamesIndustry",  handle: "gibiz.bsky.social",             group: "Press" },
+  { name: "Hazzadorgamin",  handle: "hazzadorgamin.bsky.social",     group: "Press" },
+  { name: "VGC",            handle: "videogameschronicle.com",       group: "Press" },
+  { name: "Xbox",           handle: "xbox.com",                      group: "Xbox" },
+  { name: "Game Pass",      handle: "gamepass.xbox.com",             group: "Xbox" },
+  { name: "PlayStation",    handle: "playstation.com",               group: "PlayStation" },
+  { name: "Nintendo Life",  handle: "nintendolife.com",              group: "Nintendo" },
+  { name: "Steam",          handle: "steampowered.com",              group: "PC" },
+  { name: "Capcom USA",     handle: "capcomusa.com",                 group: "Dev" },
+  { name: "Remedy",         handle: "remedygames.com",               group: "Dev" },
+  { name: "Devolver",       handle: "devolverdigital.com",           group: "Dev" },
+  { name: "Supergiant",     handle: "supergiantgames.bsky.social",   group: "Dev" },
+  { name: "RGG Studio",     handle: "rggwest.bsky.social",           group: "Dev" },
+  { name: "Square Enix",    handle: "square-enix-games.com",         group: "Dev" },
+  { name: "Focus Ent.",     handle: "focus-entmt.com",               group: "Dev" },
+  { name: "Sucker Punch",   handle: "suckerpunchprod.bsky.social",   group: "Dev" },
 ];
 
 const SOCIAL_FILTERS = ["All", "Deals", "Press", "Xbox", "PlayStation", "Nintendo", "PC", "Dev"];
@@ -155,6 +165,21 @@ const SOCIAL_FILTERS = ["All", "Deals", "Press", "Xbox", "PlayStation", "Nintend
    COMPONENTS
 ═══════════════════════════════════════════ */
 function NewsCard({ title, source, time, color, image, link, isSaved, onSave, isDealFlag, isBreaking }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleShare(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (navigator.share) {
+      try { await navigator.share({ title, url: link }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }
+
   return (
     <div className="card">
       <div className="card-body">
@@ -173,6 +198,13 @@ function NewsCard({ title, source, time, color, image, link, isSaved, onSave, is
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
             </svg>
             {isSaved ? "SAVED" : "SAVE"}
+          </button>
+          <button className={`share-btn ${copied ? "on" : ""}`} onClick={handleShare}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            {copied ? "COPIED" : "SHARE"}
           </button>
         </div>
       </div>
@@ -235,26 +267,30 @@ function BskyCard({ name, handle, avatar, time, text, link, isDealFlag, extTitle
    MAIN APP
 ═══════════════════════════════════════════ */
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("News");
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [socialFilter, setSocialFilter] = useState("All");
-  const [dealsOnly, setDealsOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [articles, setArticles] = useState([]);
-  const [socialPosts, setSocialPosts] = useState([]);
+  const [activeTab, setActiveTab]         = useState("News");
+  const [platformFilter, setPlatformFilter] = useState("All");
+  const [activeFilter, setActiveFilter]   = useState("All");
+  const [socialFilter, setSocialFilter]   = useState("All");
+  const [dealsOnly, setDealsOnly]         = useState(false);
+  const [searchQuery, setSearchQuery]     = useState("");
+  const [articles, setArticles]           = useState([]);
+  const [socialPosts, setSocialPosts]     = useState([]);
   const [isNewsLoading, setIsNewsLoading] = useState(true);
   const [isSocialLoading, setIsSocialLoading] = useState(false);
-  const [socialLoaded, setSocialLoaded] = useState(false);
+  const [socialLoaded, setSocialLoaded]   = useState(false);
   const [savedArticles, setSavedArticles] = useState([]);
-  const [newsRenderLimit, setNewsRenderLimit] = useState(30);
+  const [newsRenderLimit, setNewsRenderLimit]   = useState(30);
   const [socialRenderLimit, setSocialRenderLimit] = useState(30);
-  const [newArticleCount, setNewArticleCount] = useState(0);
+  const [newArticleCount, setNewArticleCount]   = useState(0);
+  const [newSocialCount, setNewSocialCount]     = useState(0);
+  const [savedSort, setSavedSort]         = useState("saved");
 
-  const seenLinksRef = useRef(new Set());
-  const activeTabRef = useRef("News");
+  const seenLinksRef      = useRef(new Set());
+  const seenSocialIdsRef  = useRef(new Set());
+  const activeTabRef      = useRef("News");
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
-  // Load bookmarks from localStorage on mount
+  // Load bookmarks
   useEffect(() => {
     try {
       const stored = localStorage.getItem("pulsecast_bookmarks");
@@ -262,11 +298,8 @@ export default function Home() {
     } catch {}
   }, []);
 
-  // Save bookmarks to localStorage whenever they change
   useEffect(() => {
-    try {
-      localStorage.setItem("pulsecast_bookmarks", JSON.stringify(savedArticles));
-    } catch {}
+    try { localStorage.setItem("pulsecast_bookmarks", JSON.stringify(savedArticles)); } catch {}
   }, [savedArticles]);
 
   function toggleSave(article) {
@@ -278,33 +311,29 @@ export default function Home() {
     }
   }
 
-  // Fetch news — parallel with fallback proxies
   const fetchNews = useCallback(async () => {
     setIsNewsLoading(true);
     const fresh = [];
 
     await Promise.allSettled(NEWS_SOURCES.map(async (source) => {
-      // Strategy 1: rss2json
       try {
         const r = await withTimeout(fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`), 10000);
         if (r.ok) {
           const data = await r.json();
           if (data.status === "ok" && data.items?.length) {
-            const items = data.items.map(item => ({
+            fresh.push(...data.items.map(item => ({
               title: (item.title || "").trim(),
               source: source.name,
               color: source.color,
               date: parseDate(item.pubDate),
               image: item.thumbnail || item.enclosure?.link || "",
               link: item.link || "",
-            })).filter(a => a.title && a.link);
-            fresh.push(...items);
+            })).filter(a => a.title && a.link));
             return;
           }
         }
       } catch {}
 
-      // Strategy 2: allorigins proxy
       try {
         const r = await withTimeout(fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(source.url)}`), 10000);
         if (r.ok) {
@@ -313,31 +342,24 @@ export default function Home() {
           if (xml && typeof xml === "string") {
             const doc = new DOMParser().parseFromString(xml, "application/xml");
             if (!doc.querySelector("parsererror")) {
-              const entries = [...doc.querySelectorAll("item, entry")];
-              const items = entries.map(el => {
+              fresh.push(...[...doc.querySelectorAll("item, entry")].map(el => {
                 const title = (el.querySelector("title")?.textContent || "").trim();
                 const linkEl = el.querySelector("link");
                 const link = linkEl?.getAttribute("href") || linkEl?.textContent?.trim() || "";
                 const rawDate = el.querySelector("pubDate")?.textContent || el.querySelector("published")?.textContent || el.querySelector("updated")?.textContent || "";
-                let image = "";
-                const desc = el.querySelector("description")?.textContent || "";
-                const m = desc.match(/<img[^>]+src=["']([^"']+)/i);
-                if (m) image = m[1];
-                return { title, source: source.name, color: source.color, date: parseDate(rawDate), image, link };
-              }).filter(a => a.title && a.link);
-              fresh.push(...items);
+                const m = (el.querySelector("description")?.textContent || "").match(/<img[^>]+src=["']([^"']+)/i);
+                return { title, source: source.name, color: source.color, date: parseDate(rawDate), image: m ? m[1] : "", link };
+              }).filter(a => a.title && a.link));
             }
           }
         }
       } catch {}
     }));
 
-    // Deduplicate by link
     const seen = new Set();
     const deduped = fresh.filter(a => { if (seen.has(a.link)) return false; seen.add(a.link); return true; });
     deduped.sort((a, b) => b.date - a.date);
 
-    // Badge: count genuinely new articles on subsequent fetches
     if (seenLinksRef.current.size === 0) {
       deduped.forEach(a => seenLinksRef.current.add(a.link));
     } else {
@@ -352,7 +374,6 @@ export default function Home() {
     setIsNewsLoading(false);
   }, []);
 
-  // Fetch Bluesky — parallel
   const fetchSocial = useCallback(async () => {
     setIsSocialLoading(true);
     const fresh = [];
@@ -364,16 +385,14 @@ export default function Home() {
         const data = await r.json();
         if (!data.feed) return;
 
-        const posts = data.feed.map(entry => {
+        fresh.push(...data.feed.map(entry => {
           const post = entry.post || {};
           const rec = post.record || {};
           const text = (typeof rec.text === "string" ? rec.text : "").trim();
           const uri = typeof post.uri === "string" ? post.uri : "";
           const postId = uri.split("/").pop() || "";
           const authorHandle = post.author?.handle || account.handle;
-          const embed = post.embed || {};
-          const ext = embed.external || null;
-
+          const ext = (post.embed || {}).external || null;
           return {
             id: uri || Math.random().toString(),
             name: post.author?.displayName || account.name,
@@ -386,22 +405,34 @@ export default function Home() {
             extUrl: ext?.uri || "",
             group: account.group,
           };
-        }).filter(p => p.text);
-
-        fresh.push(...posts);
+        }).filter(p => p.text));
       } catch {}
     }));
 
-    // Deduplicate by id
     const seen = new Set();
     const deduped = fresh.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
     deduped.sort((a, b) => b.date - a.date);
+
+    if (seenSocialIdsRef.current.size === 0) {
+      deduped.forEach(p => seenSocialIdsRef.current.add(p.id));
+    } else {
+      const newOnes = deduped.filter(p => !seenSocialIdsRef.current.has(p.id));
+      deduped.forEach(p => seenSocialIdsRef.current.add(p.id));
+      if (newOnes.length > 0 && activeTabRef.current !== "Social") {
+        setNewSocialCount(prev => prev + newOnes.length);
+      }
+    }
+
     setSocialPosts(deduped);
     setIsSocialLoading(false);
     setSocialLoaded(true);
   }, []);
 
-  // Initial fetch + auto-refresh every 10 minutes
+  function handleRefresh() {
+    fetchNews();
+    if (socialLoaded) fetchSocial();
+  }
+
   useEffect(() => {
     fetchNews();
     const interval = setInterval(() => {
@@ -411,28 +442,40 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [fetchNews, fetchSocial, socialLoaded]);
 
-  // Lazy-load social on first tab switch
   useEffect(() => {
-    if (activeTab === "Social" && !socialLoaded && !isSocialLoading) {
-      fetchSocial();
-    }
+    if (activeTab === "Social" && !socialLoaded && !isSocialLoading) fetchSocial();
   }, [activeTab, socialLoaded, isSocialLoading, fetchSocial]);
 
-  // Reset render limits on tab/filter changes
-  useEffect(() => { setNewsRenderLimit(30); }, [activeFilter, activeTab]);
+  useEffect(() => { setNewsRenderLimit(30); }, [activeFilter, platformFilter, activeTab]);
   useEffect(() => { setSocialRenderLimit(30); }, [activeTab, socialFilter]);
 
   function switchTab(tab) {
     setActiveTab(tab);
     setSearchQuery("");
     setActiveFilter("All");
+    setPlatformFilter("All");
     setDealsOnly(false);
     setSocialFilter("All");
     if (tab === "News") setNewArticleCount(0);
+    if (tab === "Social") setNewSocialCount(0);
   }
 
-  // Filtered articles
+  function switchPlatform(p) {
+    setPlatformFilter(p);
+    setActiveFilter("All");
+  }
+
+  // Platform-aware source list and article filtering
+  const platformSources = platformFilter === "All"
+    ? null
+    : new Set(NEWS_SOURCES.filter(s => s.platform === platformFilter).map(s => s.name));
+
+  const filterButtons = ["All", ...(platformFilter === "All"
+    ? NEWS_SOURCES.map(s => s.name)
+    : NEWS_SOURCES.filter(s => s.platform === platformFilter).map(s => s.name))];
+
   const filteredArticles = articles
+    .filter(a => !platformSources || platformSources.has(a.source))
     .filter(a => activeFilter === "All" || a.source === activeFilter)
     .filter(a => !dealsOnly || isDeal(a.title))
     .filter(a => !searchQuery || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.source.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -441,28 +484,39 @@ export default function Home() {
     .filter(p => socialFilter === "All" || p.group === socialFilter)
     .filter(p => !searchQuery || p.text.toLowerCase().includes(searchQuery.toLowerCase()) || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.handle.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const filteredSaved = savedArticles
+  const filteredSaved = [...savedArticles]
+    .sort((a, b) => savedSort === "saved"
+      ? (b.savedAt || 0) - (a.savedAt || 0)
+      : parseDate(b.date) - parseDate(a.date))
     .filter(a => !searchQuery || (a.title || "").toLowerCase().includes(searchQuery.toLowerCase()) || (a.source || "").toLowerCase().includes(searchQuery.toLowerCase()));
 
   const topStories = getTopStories(articles);
-  const dealCount = articles.filter(a => isDeal(a.title)).length;
-
-  const filterButtons = ["All", ...NEWS_SOURCES.map(s => s.name)];
+  const dealCount  = articles.filter(a => isDeal(a.title)).length;
+  const trending   = getTrendingKeywords(articles);
 
   return (
     <div className="wrap">
       <header>
-        <div className="logo">PULSECAST</div>
-        <div className="tagline">Gaming News · Curated</div>
+        <div className="header-row">
+          <div>
+            <div className="logo">PULSECAST</div>
+            <div className="tagline">Gaming News · Curated</div>
+          </div>
+          <button className="refresh-btn" onClick={handleRefresh} disabled={isNewsLoading} title="Refresh">
+            <svg className={isNewsLoading ? "spinning" : ""} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+        </div>
       </header>
 
       <div className="nav">
         {["News", "Social", "Saved"].map(tab => (
           <button key={tab} className={`nav-btn ${activeTab === tab ? "active" : ""}`} onClick={() => switchTab(tab)}>
             {tab}
-            {tab === "News" && newArticleCount > 0 && (
-              <span className="nav-badge">{newArticleCount}</span>
-            )}
+            {tab === "News"   && newArticleCount > 0 && <span className="nav-badge">{newArticleCount}</span>}
+            {tab === "Social" && newSocialCount > 0  && <span className="nav-badge">{newSocialCount}</span>}
           </button>
         ))}
       </div>
@@ -477,21 +531,32 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ═══ NEWS FILTERS ═══ */}
       {activeTab === "News" && (
-        <div className="pills">
-          {filterButtons.map(name => (
-            <button key={name} className={`pill ${activeFilter === name ? "on" : ""}`} onClick={() => setActiveFilter(name)}>
-              {name}
-            </button>
-          ))}
-          {dealCount > 0 && (
-            <button className={`pill deal ${dealsOnly ? "on" : ""}`} onClick={() => setDealsOnly(!dealsOnly)}>
-              🔥 DEALS ({dealCount})
-            </button>
-          )}
-        </div>
+        <>
+          <div className="pills">
+            {PLATFORM_FILTERS.map(p => (
+              <button key={p} className={`pill ${platformFilter === p ? "on" : ""}`} onClick={() => switchPlatform(p)}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="pills" style={{ paddingTop: 0 }}>
+            {filterButtons.map(name => (
+              <button key={name} className={`pill ${activeFilter === name ? "on" : ""}`} onClick={() => setActiveFilter(name)}>
+                {name}
+              </button>
+            ))}
+            {dealCount > 0 && (
+              <button className={`pill deal ${dealsOnly ? "on" : ""}`} onClick={() => setDealsOnly(!dealsOnly)}>
+                🔥 DEALS ({dealCount})
+              </button>
+            )}
+          </div>
+        </>
       )}
 
+      {/* ═══ SOCIAL FILTERS ═══ */}
       {activeTab === "Social" && (
         <div className="pills">
           {SOCIAL_FILTERS.map(name => (
@@ -503,6 +568,7 @@ export default function Home() {
       )}
 
       <div className="content">
+
         {/* ═══ NEWS TAB ═══ */}
         {activeTab === "News" && (
           <>
@@ -518,6 +584,20 @@ export default function Home() {
               </div>
             ) : (
               <>
+                {/* Trending keywords */}
+                {activeFilter === "All" && platformFilter === "All" && !dealsOnly && !searchQuery && trending.length > 0 && (
+                  <div className="trending">
+                    <div className="trending-label">Trending</div>
+                    <div className="trending-pills">
+                      {trending.map(word => (
+                        <button key={word} className="trending-pill" onClick={() => setSearchQuery(word)}>
+                          {word}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Top Stories */}
                 {activeFilter === "All" && !dealsOnly && !searchQuery && topStories.length > 0 && (
                   <div className="top-stories">
@@ -529,7 +609,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Article list */}
                 {filteredArticles.slice(0, newsRenderLimit).map((article) => (
                   <NewsCard
                     key={article.link}
@@ -585,7 +664,6 @@ export default function Home() {
                     extUrl={post.extUrl}
                   />
                 ))}
-
                 {filteredSocial.length > socialRenderLimit && (
                   <button className="load-more" onClick={() => setSocialRenderLimit(prev => prev + 30)}>
                     Show more ({filteredSocial.length - socialRenderLimit} remaining)
@@ -607,8 +685,14 @@ export default function Home() {
               </div>
             ) : (
               <>
-                <div style={{ fontSize: "11px", color: "var(--text2)", fontWeight: 600, letterSpacing: ".1em", padding: "4px 0 12px" }}>
-                  {filteredSaved.length} SAVED
+                <div className="saved-header">
+                  <span style={{ fontSize: "11px", color: "var(--text2)", fontWeight: 600, letterSpacing: ".1em" }}>
+                    {filteredSaved.length} SAVED
+                  </span>
+                  <div className="sort-toggle">
+                    <button className={`sort-btn ${savedSort === "saved" ? "on" : ""}`} onClick={() => setSavedSort("saved")}>Date Saved</button>
+                    <button className={`sort-btn ${savedSort === "published" ? "on" : ""}`} onClick={() => setSavedSort("published")}>Published</button>
+                  </div>
                 </div>
                 {filteredSaved.map((article) => (
                   <NewsCard
@@ -629,6 +713,7 @@ export default function Home() {
             )}
           </>
         )}
+
       </div>
     </div>
   );

@@ -227,22 +227,46 @@ function NewsCard({ title, source, time, color, image, link, isSaved, onSave, is
   );
 }
 
-function TopStoryCard({ title, source, color, time, count, link }) {
+function TopStoryCard({ title, source, color, time, count, link, onDismiss }) {
   return (
-    <a href={link} target="_blank" rel="noopener noreferrer" style={{ display: "block" }}>
-      <div className="ts-card">
+    <div className="ts-card" style={{ position: "relative" }}>
+      {/* The Dismiss 'X' Button */}
+      <button 
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDismiss(); }}
+        style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", color: "var(--text2)", cursor: "pointer", fontSize: "16px", padding: "4px", zIndex: 10 }}
+      >
+        ✕
+      </button>
+      
+      {/* Clicking the link ALSO triggers the dismiss! */}
+      <a href={link} target="_blank" rel="noopener noreferrer" style={{ display: "block", paddingRight: "20px" }} onClick={() => onDismiss()}>
         <div className="ts-title">{title}</div>
         <div className="ts-meta">
           <span className="ts-src" style={{ color }}>{source}</span>
           {time && <span className="card-time">· {time}</span>}
           <span className="ts-count">+{count} sources</span>
         </div>
-      </div>
-    </a>
+      </a>
+    </div>
   );
 }
 
 function BskyCard({ name, handle, avatar, time, text, link, isDealFlag, extTitle, extUrl }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleShare(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (navigator.share) {
+      try { await navigator.share({ text: text, url: link }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }
+
   return (
     <a href={link} target="_blank" rel="noopener noreferrer" style={{ display: "block" }}>
       <div className="bsky-card">
@@ -268,6 +292,16 @@ function BskyCard({ name, handle, avatar, time, text, link, isDealFlag, extTitle
             {extUrl && <div className="bsky-link-domain">{(() => { try { return new URL(extUrl).hostname.replace("www.", ""); } catch { return ""; } })()}</div>}
           </div>
         )}
+        {/* The New Share Button! */}
+        <div className="card-actions" style={{ marginTop: "12px", display: "flex", gap: "12px" }}>
+          <button className={`share-btn ${copied ? "on" : ""}`} onClick={handleShare}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            {copied ? "COPIED" : "SHARE"}
+          </button>
+        </div>
       </div>
     </a>
   );
@@ -294,6 +328,9 @@ export default function Home() {
   const [newArticleCount, setNewArticleCount]   = useState(0);
   const [newSocialCount, setNewSocialCount]     = useState(0);
   const [savedSort, setSavedSort]         = useState("saved");
+  
+  // The New Dismissed Stories Notepad!
+  const [dismissedStories, setDismissedStories] = useState([]);
 
   const seenLinksRef      = useRef(new Set());
   const seenSocialIdsRef  = useRef(new Set());
@@ -311,6 +348,24 @@ export default function Home() {
   useEffect(() => {
     try { localStorage.setItem("pulsecast_bookmarks", JSON.stringify(savedArticles)); } catch {}
   }, [savedArticles]);
+
+  // Load and save dismissed stories
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("pulsecast_dismissed");
+      if (stored) setDismissedStories(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("pulsecast_dismissed", JSON.stringify(dismissedStories)); } catch {}
+  }, [dismissedStories]);
+
+  function handleDismissTopStory(link) {
+    if (!dismissedStories.includes(link)) {
+      setDismissedStories(prev => [...prev, link]);
+    }
+  }
 
   function toggleSave(article) {
     const isAlreadySaved = savedArticles.some(s => s.link === article.link);
@@ -609,11 +664,22 @@ export default function Home() {
                 )}
 
                 {/* Top Stories */}
-                {activeFilter === "All" && !dealsOnly && !searchQuery && topStories.length > 0 && (
+                {activeFilter === "All" && platformFilter === "All" && !dealsOnly && !searchQuery && topStories.filter(c => !dismissedStories.includes(c.rep.link)).length > 0 && (
                   <div className="top-stories">
                     <div className="ts-label">📈 Top Stories</div>
-                    {topStories.map((c, i) => (
-                      <TopStoryCard key={i} title={c.rep.title} source={c.rep.source} color={c.rep.color} time={getTimeAgo(c.rep.date)} count={c.count} link={c.rep.link} />
+                    {topStories
+                      .filter(c => !dismissedStories.includes(c.rep.link))
+                      .map((c, i) => (
+                      <TopStoryCard 
+                        key={i} 
+                        title={c.rep.title} 
+                        source={c.rep.source} 
+                        color={c.rep.color} 
+                        time={getTimeAgo(c.rep.date)} 
+                        count={c.count} 
+                        link={c.rep.link} 
+                        onDismiss={() => handleDismissTopStory(c.rep.link)}
+                      />
                     ))}
                     <div className="divider">All Headlines</div>
                   </div>

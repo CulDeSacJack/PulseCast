@@ -26,6 +26,9 @@ openGraph: {
     title: "PULSECAST",
     description: "Gaming news, curated. Top stories, deals, and social feeds from 40+ sources.",
   },
+  
+};
+export const viewport = {
   themeColor: "#0b0b12",
 };
 

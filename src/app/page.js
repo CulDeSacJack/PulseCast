@@ -276,6 +276,7 @@ export default function Home() {
   const [lastDismissedStory, setLastDismissedStory] = useState(null);
   const [lastClearedSaved, setLastClearedSaved] = useState([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isNewsSourceTrayOpen, setIsNewsSourceTrayOpen] = useState(false);
   const seenLinksRef = useRef(new Set());
   const seenSocialIdsRef = useRef(new Set());
   const activeTabRef = useRef("News");
@@ -386,6 +387,7 @@ export default function Home() {
       socialFilter: "All",
     });
     setSearchQuery("");
+    if (tab !== "News") setIsNewsSourceTrayOpen(false);
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
     if (tab === "News") setNewArticleCount(0);
@@ -567,6 +569,11 @@ export default function Home() {
   const trending = getTrendingKeywords(articlePool, now);
   const visibleTopStories = topStories.filter((story) => !dismissedStories.includes(story.rep.link));
   const isRefreshing = isNewsLoading || isSocialLoading;
+  const pageModeClass = activeTab === "Social" ? "social-mode" : activeTab === "Saved" ? "saved-mode" : "news-mode";
+  const showNewsHighlights = activeFilter === "All" && platformFilter === "All" && !dealsOnly && !searchQuery;
+  const leadTopStory = showNewsHighlights ? visibleTopStories[0] : null;
+  const supportingTopStories = showNewsHighlights ? visibleTopStories.slice(1) : [];
+  const isNewsSourceTrayVisible = isNewsSourceTrayOpen || activeFilter !== "All";
 
   const newsStatusItems = [
     {
@@ -710,7 +717,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="wrap">
+    <div className={`wrap ${pageModeClass}`}>
       <header>
         <div className="header-row">
           <div>
@@ -756,83 +763,153 @@ export default function Home() {
 
       {activeTab === "News" && (
         <>
-          <FeedStatusBar items={newsStatusItems} actions={newsStatusActions} />
-          <div className="pills">
-            {PLATFORM_FILTERS.map((platform) => (
-              <button type="button" key={platform} className={`pill ${platformFilter === platform ? "on" : ""}`} onClick={() => switchPlatform(platform)}>
-                {platform}
-              </button>
-            ))}
+          <div className="tab-intro news-intro">
+            <div>
+              <div className="tab-kicker">Front Page</div>
+              <div className="tab-title">Catch the stories everyone is chasing.</div>
+              <div className="tab-copy">
+                Track the biggest gaming headlines across trusted outlets, then zoom into a platform or source when you want a tighter read.
+              </div>
+            </div>
+            <div className="tab-stats">
+              <span className="tab-stat">{filteredArticles.length} headlines</span>
+              {visibleTopStories.length > 0 && <span className="tab-stat">{visibleTopStories.length} top stories</span>}
+              {dealCount > 0 && <span className="tab-stat">{dealCount} live deals</span>}
+            </div>
           </div>
-          <div className="pills" style={{ paddingTop: 0 }}>
-            {filterButtons.map((name) => (
+          <FeedStatusBar items={newsStatusItems} actions={newsStatusActions} />
+          <div className="filter-deck">
+            <div className="filter-deck-head">
+              <div>
+                <div className="filter-deck-label">Quick Filters</div>
+                <div className="filter-deck-copy">Keep the common controls up front and tuck the long source list into a tray.</div>
+              </div>
               <button
                 type="button"
-                key={name}
-                className={`pill ${activeFilter === name ? "on" : ""}`}
-                onClick={() => {
-                  updatePreferences({ activeFilter: name });
-                  setNewsRenderLimit(30);
-                }}
+                className={`filter-tray-toggle ${isNewsSourceTrayVisible ? "active" : ""}`}
+                onClick={() => setIsNewsSourceTrayOpen((previous) => !previous)}
               >
-                {name}
+                {activeFilter === "All" ? "Browse Sources" : `Source: ${activeFilter}`}
               </button>
-            ))}
-            {dealCount > 0 && (
+            </div>
+            <div className="pills filter-row primary">
+              {PLATFORM_FILTERS.map((platform) => (
+                <button type="button" key={platform} className={`pill ${platformFilter === platform ? "on" : ""}`} onClick={() => switchPlatform(platform)}>
+                  {platform}
+                </button>
+              ))}
+              {dealCount > 0 && (
+                <button
+                  type="button"
+                  className={`pill deal ${dealsOnly ? "on" : ""}`}
+                  onClick={() => {
+                    updatePreferences({ dealsOnly: !dealsOnly });
+                    setNewsRenderLimit(30);
+                  }}
+                >
+                  Hot Deals ({dealCount})
+                </button>
+              )}
               <button
                 type="button"
-                className={`pill deal ${dealsOnly ? "on" : ""}`}
+                className={`pill ${gamingOnly ? "on" : ""}`}
                 onClick={() => {
-                  updatePreferences({ dealsOnly: !dealsOnly });
+                  updatePreferences({ gamingOnly: !gamingOnly });
                   setNewsRenderLimit(30);
+                  setSocialRenderLimit(30);
                 }}
               >
-                HOT DEALS ({dealCount})
+                Gaming Only
               </button>
+            </div>
+            {isNewsSourceTrayVisible && (
+              <div className="filter-tray">
+                <div className="filter-tray-meta">
+                  <span>Source Filters</span>
+                  {activeFilter !== "All" && (
+                    <button
+                      type="button"
+                      className="filter-tray-clear"
+                      onClick={() => {
+                        updatePreferences({ activeFilter: "All" });
+                        setNewsRenderLimit(30);
+                      }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="pills filter-row secondary">
+                  {filterButtons.map((name) => (
+                    <button
+                      type="button"
+                      key={name}
+                      className={`pill ${activeFilter === name ? "on" : ""}`}
+                      onClick={() => {
+                        updatePreferences({ activeFilter: name });
+                        setNewsRenderLimit(30);
+                      }}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
-            <button
-              type="button"
-              className={`pill ${gamingOnly ? "on" : ""}`}
-              onClick={() => {
-                updatePreferences({ gamingOnly: !gamingOnly });
-                setNewsRenderLimit(30);
-                setSocialRenderLimit(30);
-              }}
-            >
-              Gaming Only
-            </button>
           </div>
         </>
       )}
 
       {activeTab === "Social" && (
         <>
+          <div className="tab-intro social-intro">
+            <div>
+              <div className="tab-kicker">Live Feed</div>
+              <div className="tab-title">See what gaming Bluesky is talking about right now.</div>
+              <div className="tab-copy">
+                Keep press, platform, dev, and deals chatter in one stream without losing the pace of a social feed.
+              </div>
+            </div>
+            <div className="tab-stats">
+              <span className="tab-stat">{filteredSocial.length} posts</span>
+              <span className="tab-stat">{socialStatus.successfulCount}/{socialStatus.totalCount} accounts live</span>
+              {mutedAccounts.length > 0 && <span className="tab-stat">{mutedAccounts.length} muted</span>}
+            </div>
+          </div>
           <FeedStatusBar items={socialStatusItems} actions={socialStatusActions} />
-          <div className="pills">
-            {SOCIAL_FILTERS.map((name) => (
+          <div className="filter-deck social-filter-deck">
+            <div className="filter-deck-head">
+              <div>
+                <div className="filter-deck-label">Channel Mix</div>
+                <div className="filter-deck-copy">Shift between press, platform, deal, and dev chatter without crowding the feed controls.</div>
+              </div>
+            </div>
+            <div className="pills filter-row secondary social-filter-row">
+              {SOCIAL_FILTERS.map((name) => (
+                <button
+                  type="button"
+                  key={name}
+                  className={`pill ${socialFilter === name ? "on" : ""}`}
+                  onClick={() => {
+                    updatePreferences({ socialFilter: name });
+                    setSocialRenderLimit(30);
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
               <button
                 type="button"
-                key={name}
-                className={`pill ${socialFilter === name ? "on" : ""}`}
+                className={`pill ${gamingOnly ? "on" : ""}`}
                 onClick={() => {
-                  updatePreferences({ socialFilter: name });
+                  updatePreferences({ gamingOnly: !gamingOnly });
+                  setNewsRenderLimit(30);
                   setSocialRenderLimit(30);
                 }}
               >
-                {name}
+                Gaming Only
               </button>
-            ))}
-            <button
-              type="button"
-              className={`pill ${gamingOnly ? "on" : ""}`}
-              onClick={() => {
-                updatePreferences({ gamingOnly: !gamingOnly });
-                setNewsRenderLimit(30);
-                setSocialRenderLimit(30);
-              }}
-            >
-              Gaming Only
-            </button>
+            </div>
           </div>
         </>
       )}
@@ -852,7 +929,7 @@ export default function Home() {
               </div>
             ) : (
               <>
-                {activeFilter === "All" && platformFilter === "All" && !dealsOnly && !searchQuery && trending.length > 0 && (
+                {showNewsHighlights && trending.length > 0 && (
                   <div className="trending">
                     <div className="trending-label">Trending</div>
                     <div className="trending-pills">
@@ -865,21 +942,45 @@ export default function Home() {
                   </div>
                 )}
 
-                {activeFilter === "All" && platformFilter === "All" && !dealsOnly && !searchQuery && visibleTopStories.length > 0 && (
+                {showNewsHighlights && visibleTopStories.length > 0 && (
                   <div className="top-stories">
-                    <div className="ts-label">Top Stories</div>
-                    {visibleTopStories.map((story) => (
-                      <TopStoryCard
-                        key={story.rep.link}
-                        title={story.rep.title}
-                        source={story.rep.source}
-                        color={story.rep.color}
-                        time={getTimeAgo(story.rep.date, now)}
-                        count={story.count}
-                        link={story.rep.link}
-                        onDismiss={() => handleDismissTopStory({ link: story.rep.link, title: story.rep.title })}
-                      />
-                    ))}
+                    <div className="section-head">
+                      <div>
+                        <div className="ts-label">Top Stories</div>
+                        <div className="section-copy">Cross-source stories surfacing across the gaming press in the last 12 hours.</div>
+                      </div>
+                    </div>
+                    <div className="ts-grid">
+                      {leadTopStory && (
+                        <TopStoryCard
+                          key={leadTopStory.rep.link}
+                          title={leadTopStory.rep.title}
+                          source={leadTopStory.rep.source}
+                          color={leadTopStory.rep.color}
+                          time={getTimeAgo(leadTopStory.rep.date, now)}
+                          count={leadTopStory.count}
+                          link={leadTopStory.rep.link}
+                          isLead={true}
+                          onDismiss={() => handleDismissTopStory({ link: leadTopStory.rep.link, title: leadTopStory.rep.title })}
+                        />
+                      )}
+                      {supportingTopStories.length > 0 && (
+                        <div className="ts-stack">
+                          {supportingTopStories.map((story) => (
+                            <TopStoryCard
+                              key={story.rep.link}
+                              title={story.rep.title}
+                              source={story.rep.source}
+                              color={story.rep.color}
+                              time={getTimeAgo(story.rep.date, now)}
+                              count={story.count}
+                              link={story.rep.link}
+                              onDismiss={() => handleDismissTopStory({ link: story.rep.link, title: story.rep.title })}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div className="divider">All Headlines</div>
                   </div>
                 )}

@@ -36,13 +36,13 @@ export default function BskyCard({
 
   return (
     <div className="bsky-card">
-      <a href={link} target="_blank" rel="noopener noreferrer" style={{ display: "block" }}>
+      <a href={link} target="_blank" rel="noopener noreferrer" className="bsky-main">
         <div className="bsky-head">
           {avatar ? (
-            <div className="bsky-avatar" style={{ overflow: "hidden", padding: 0 }}>
+            <div className="bsky-avatar bsky-avatar-image">
               {/* External avatars are user-provided remote images, so a raw img is intentional here. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+              <img src={avatar} alt="" className="bsky-avatar-img" />
             </div>
           ) : (
             <div className="bsky-avatar">{name.charAt(0)}</div>
@@ -62,7 +62,7 @@ export default function BskyCard({
           </div>
         )}
       </a>
-      <div className="card-actions" style={{ marginTop: "12px", display: "flex", gap: "12px" }}>
+      <div className="card-actions bsky-actions">
         {onToggleMute && (
           <button type="button" className={`mute-btn ${isMuted ? "on" : ""}`} onClick={onToggleMute}>
             {isMuted ? "UNMUTE" : "MUTE"}

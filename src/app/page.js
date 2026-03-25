@@ -360,7 +360,18 @@ export default function Home() {
   useEffect(() => {
     try { localStorage.setItem("pulsecast_dismissed", JSON.stringify(dismissedStories)); } catch {}
   }, [dismissedStories]);
+// Load active tab from memory when the page reboots
+  useEffect(() => {
+    try {
+      const storedTab = localStorage.getItem("pulsecast_activeTab");
+      if (storedTab) setActiveTab(storedTab);
+    } catch {}
+  }, []);
 
+  // Save active tab to memory every time you click a new tab
+  useEffect(() => {
+    try { localStorage.setItem("pulsecast_activeTab", activeTab); } catch {}
+  }, [activeTab]);
   function handleDismissTopStory(link) {
     if (!dismissedStories.includes(link)) {
       setDismissedStories(prev => [...prev, link]);

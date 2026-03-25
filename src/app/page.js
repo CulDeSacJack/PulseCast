@@ -155,18 +155,33 @@ const BSKY_ACCOUNTS = [
   { name: "RGG Studio",     handle: "rggwest.bsky.social",           group: "Dev" },
   { name: "Square Enix",    handle: "square-enix-games.com",         group: "Dev" },
   { name: "Focus Ent.",     handle: "focus-entmt.com",               group: "Dev" },
-  { name: "Sucker Punch",          handle: "suckerpunchprod.bsky.social",  group: "Dev" },
-  { name: "Bethesda Studios",      handle: "bethesdastudios.com",          group: "Dev" },
-  { name: "Bethesda",              handle: "bethesda.net",                 group: "Dev" },
-  { name: "Annapurna",             handle: "annapurna.com",                group: "Dev" },
-  { name: "505 Games",             handle: "505games.com",                 group: "Dev" },
-  { name: "Pure Xbox",             handle: "purexbox.com",                 group: "Xbox" },
-  { name: "GOG",                   handle: "gog.com",                      group: "PC" },
-  { name: "Steam Deck",            handle: "steamdeck.com",                group: "PC" },
-  { name: "Valve",                 handle: "valvesoftware.com",            group: "PC" },
-  { name: "SteamDB",               handle: "steamdb.info",                 group: "PC" },
-  { name: "Green Man Gaming",      handle: "greenmangaming.com",           group: "Deals" },
-  { name: "GameSpot",              handle: "gamespot.com",                 group: "Press" },
+  { name: "Sucker Punch",   handle: "suckerpunchprod.bsky.social",   group: "Dev" },
+  { name: "Bethesda Studios",handle: "bethesdastudios.com",          group: "Dev" },
+  { name: "Bethesda",       handle: "bethesda.net",                  group: "Dev" },
+  { name: "Annapurna",      handle: "annapurna.com",                 group: "Dev" },
+  { name: "505 Games",      handle: "505games.com",                  group: "Dev" },
+  { name: "Pure Xbox",      handle: "purexbox.com",                  group: "Xbox" },
+  { name: "GOG",            handle: "gog.com",                       group: "PC" },
+  { name: "Steam Deck",     handle: "steamdeck.com",                 group: "PC" },
+  { name: "Valve",          handle: "valvesoftware.com",             group: "PC" },
+  { name: "SteamDB",        handle: "steamdb.info",                  group: "PC" },
+  { name: "Green Man Gaming",handle: "greenmangaming.com",           group: "Deals" },
+  { name: "GameSpot",       handle: "gamespot.com",                  group: "Press" },
+  { name: "World of Warcraft", handle: "warcraft.com",               group: "PC" },
+  { name: "Overwatch",      handle: "playoverwatch.com",             group: "PC" },
+  { name: "Sea of Thieves", handle: "seaofthieves.com",              group: "Xbox" },
+  { name: "Megacrit",       handle: "megacrit.com",                  group: "Dev" },
+  { name: "Larian",         handle: "larianstudios.com",             group: "Dev" },
+  { name: "THQ Nordic",     handle: "thqnordic.com",                 group: "Dev" },
+  { name: "Sega",           handle: "sega-west.bsky.social",         group: "Dev" },
+  { name: "Konami",         handle: "konamina.bsky.social",          group: "Dev" },
+  { name: "Sonic",          handle: "sonic-official.bsky.social",    group: "Dev" },
+  { name: "Evil Empire",    handle: "evilempirestudio.bsky.social",  group: "Dev" },
+  { name: "Team Cherry",    handle: "teamcherry.bsky.social",        group: "Dev" },
+  { name: "Sabotage Studio",handle: "sabotagestudio.com",            group: "Dev" },
+  { name: "Xbox Wire",      handle: "wire.xbox.com",                 group: "Xbox" },
+  { name: "Ubisoft",        handle: "ubisoft.com",                   group: "Dev" },
+  { name: "Evo",            handle: "evo.gg",                        group: "Press" }
 ];
 
 const SOCIAL_FILTERS = ["All", "Deals", "Press", "Xbox", "PlayStation", "Nintendo", "PC", "Dev"];
@@ -335,6 +350,8 @@ export default function Home() {
   const seenLinksRef      = useRef(new Set());
   const seenSocialIdsRef  = useRef(new Set());
   const activeTabRef      = useRef("News");
+  const isInitialMount    = useRef(true);
+
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   // Load bookmarks
@@ -360,7 +377,8 @@ export default function Home() {
   useEffect(() => {
     try { localStorage.setItem("pulsecast_dismissed", JSON.stringify(dismissedStories)); } catch {}
   }, [dismissedStories]);
-// Load active tab from memory when the page reboots
+
+  // 1. Load active tab from memory when the page reboots
   useEffect(() => {
     try {
       const storedTab = localStorage.getItem("pulsecast_activeTab");
@@ -368,10 +386,15 @@ export default function Home() {
     } catch {}
   }, []);
 
-  // Save active tab to memory every time you click a new tab
+  // 2. Save active tab to memory ONLY when you click (ignore the reboot!)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return; // Stop right here on the first load!
+    }
     try { localStorage.setItem("pulsecast_activeTab", activeTab); } catch {}
   }, [activeTab]);
+
   function handleDismissTopStory(link) {
     if (!dismissedStories.includes(link)) {
       setDismissedStories(prev => [...prev, link]);

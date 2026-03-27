@@ -12,7 +12,7 @@ test("loads the news front page with mocked feeds", async ({ page }) => {
   await expect(page.getByText("Catch the stories everyone is chasing.")).toBeVisible();
   await expect(page.getByText("Top Stories", { exact: true })).toBeVisible();
   await expect(page.getByText("Mario Kart World update adds mirror mode")).toBeVisible();
-  await expect(page.getByText("12/12 sources", { exact: true })).toBeVisible();
+  await expect(page.getByText("12/12 sources live", { exact: true })).toBeVisible();
 });
 
 test("supports search, saving, and settings interactions", async ({ page }) => {

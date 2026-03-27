@@ -944,11 +944,6 @@ export default function Home() {
         return savedAt > 0 && (now - savedAt) <= 7 * 24 * 60 * 60 * 1000;
       }).length
     : 0;
-  const utilityVisibleCount = activeTab === "News"
-    ? filteredArticles.length
-    : activeTab === "Social"
-      ? filteredSocial.length
-      : filteredSaved.length;
   const utilityHealthLabel = activeTab === "News"
     ? `${newsStatus.successfulCount}/${newsStatus.totalCount} sources live`
     : activeTab === "Social"
@@ -959,16 +954,13 @@ export default function Home() {
     : activeTab === "Social"
       ? (socialFilter !== "All" ? socialFilter : gamingOnly ? "Gaming filter on" : "All channels")
       : (savedSort === "saved" ? "Sorted by save date" : "Sorted by publish date");
+  const utilityFreshnessLabel = activeTab === "News"
+    ? (isNewsLoading ? "Refreshing news" : getStatusTimeLabel(newsStatus.lastUpdatedAt, now))
+    : activeTab === "Social"
+      ? (isSocialLoading ? "Refreshing posts" : getStatusTimeLabel(socialStatus.lastUpdatedAt, now))
+      : `${filteredSaved.length} ready to read`;
 
   const newsStatusItems = [
-    {
-      label: isNewsLoading ? "Refreshing news..." : getStatusTimeLabel(newsStatus.lastUpdatedAt, now),
-      tone: isNewsLoading ? "info" : "good",
-    },
-    {
-      label: `${newsStatus.successfulCount}/${newsStatus.totalCount} sources`,
-      tone: newsStatus.successfulCount === newsStatus.totalCount ? "good" : newsStatus.successfulCount > 0 ? "warn" : "bad",
-    },
     newsStatus.failedNames.length > 0
       ? {
           label: `${newsStatus.failedNames.length} failed`,
@@ -1005,14 +997,6 @@ export default function Home() {
   ];
 
   const socialStatusItems = [
-    {
-      label: isSocialLoading ? "Refreshing posts..." : getStatusTimeLabel(socialStatus.lastUpdatedAt, now),
-      tone: isSocialLoading ? "info" : "good",
-    },
-    {
-      label: `${socialStatus.successfulCount}/${socialStatus.totalCount} accounts`,
-      tone: socialStatus.successfulCount === socialStatus.totalCount ? "good" : socialStatus.successfulCount > 0 ? "warn" : "bad",
-    },
     socialStatus.failedNames.length > 0
       ? {
           label: `${socialStatus.failedNames.length} failed`,
@@ -1049,18 +1033,7 @@ export default function Home() {
       : null,
   ];
 
-  const savedStatusItems = [
-    {
-      label: `${filteredSaved.length} visible`,
-      tone: "info",
-    },
-    savedArticles.length !== filteredSaved.length
-      ? {
-          label: `${savedArticles.length} total saved`,
-          tone: "muted",
-        }
-      : null,
-  ];
+  const savedStatusItems = [];
 
   const newsStatusActions = [
     lastDismissedStory
@@ -1235,11 +1208,22 @@ export default function Home() {
 
       <div className="search-wrap">
         <div className="utility-bar">
-          <div className="utility-meta">
-            <span className={`utility-chip mode ${activeTab.toLowerCase()}`}>{activeTab}</span>
-            <span className="utility-chip">{utilityVisibleCount} visible</span>
-            <span className="utility-chip subtle">{utilityHealthLabel}</span>
-            <span className="utility-chip subtle">{searchQuery ? `Search: ${searchQuery}` : utilityModeLabel}</span>
+          <div className="utility-row">
+            <div className="utility-summary">
+              <span className={`utility-chip mode ${activeTab.toLowerCase()}`}>{activeTab}</span>
+              <span className="utility-detail">{utilityFreshnessLabel}</span>
+              <span className="utility-detail">{utilityHealthLabel}</span>
+              <span className="utility-detail subtle">{searchQuery ? `Search: ${searchQuery}` : utilityModeLabel}</span>
+            </div>
+            <button
+              type="button"
+              className="search-shortcuts-btn"
+              onClick={() => setIsShortcutHelpOpen(true)}
+              aria-label="Open keyboard shortcuts"
+            >
+              <span className="search-shortcuts-mark">?</span>
+              <span>Shortcuts</span>
+            </button>
           </div>
           <div className="search">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8888a0" strokeWidth="2">
@@ -1254,6 +1238,12 @@ export default function Home() {
               aria-label="Search feeds"
               title="Press / or Cmd/Ctrl + K to focus search"
             />
+            {!searchQuery && (
+              <div className="search-inline-hint" aria-hidden="true">
+                <span className="search-inline-key">/</span>
+                <span className="search-inline-copy">Search</span>
+              </div>
+            )}
             {searchQuery && (
               <button
                 type="button"
@@ -1265,29 +1255,14 @@ export default function Home() {
               </button>
             )}
           </div>
-          <div className="search-meta">
-            <div className="search-hints" aria-hidden="true">
-              <span className="search-hint"><kbd>/</kbd><span>focus</span></span>
-              <span className="search-hint"><kbd>Cmd/Ctrl</kbd><kbd>K</kbd><span>search</span></span>
-            </div>
-            <button
-              type="button"
-              className="search-shortcuts-btn"
-              onClick={() => setIsShortcutHelpOpen(true)}
-              aria-label="Open keyboard shortcuts"
-            >
-              <span className="search-shortcuts-mark">?</span>
-              <span>Shortcuts</span>
-            </button>
-          </div>
         </div>
       </div>
 
       {activeTab === "News" && (
-        <>
+        <div className="tab-stack">
           <div className="tab-intro news-intro">
             <div>
-              <div className="tab-kicker">Front Page</div>
+              <div className="tab-kicker">Today</div>
               <div className="tab-title">Catch the stories everyone is chasing.</div>
               <div className="tab-copy">
                 Track the biggest gaming headlines across trusted outlets, then zoom into a platform or source when you want a tighter read.
@@ -1302,10 +1277,7 @@ export default function Home() {
           <FeedStatusBar items={newsStatusItems} actions={newsStatusActions} />
           <div className="filter-deck">
             <div className="filter-deck-head">
-              <div>
-                <div className="filter-deck-label">Quick Filters</div>
-                <div className="filter-deck-copy">Keep the common controls up front and tuck the long source list into a tray.</div>
-              </div>
+              <div className="filter-deck-label">Filters</div>
               <button
                 type="button"
                 className={`filter-tray-toggle ${isNewsSourceTrayVisible ? "active" : ""}`}
@@ -1379,14 +1351,14 @@ export default function Home() {
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {activeTab === "Social" && (
-        <>
+        <div className="tab-stack">
           <div className="tab-intro social-intro">
             <div>
-              <div className="tab-kicker">Live Feed</div>
+              <div className="tab-kicker">Live Now</div>
               <div className="tab-title">See what gaming Bluesky is talking about right now.</div>
               <div className="tab-copy">
                 Keep press, platform, dev, and deals chatter in one stream without losing the pace of a social feed.
@@ -1401,10 +1373,7 @@ export default function Home() {
           <FeedStatusBar items={socialStatusItems} actions={socialStatusActions} />
           <div className="filter-deck social-filter-deck">
             <div className="filter-deck-head">
-              <div>
-                <div className="filter-deck-label">Channel Mix</div>
-                <div className="filter-deck-copy">Shift between press, platform, deal, and dev chatter without crowding the feed controls.</div>
-              </div>
+              <div className="filter-deck-label">Channels</div>
             </div>
             <div className="pills filter-row secondary social-filter-row">
               {SOCIAL_FILTERS.map((name) => (
@@ -1433,13 +1402,13 @@ export default function Home() {
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {activeTab === "Saved" && (
         <div className="tab-intro saved-intro">
           <div>
-            <div className="tab-kicker">Reading List</div>
+            <div className="tab-kicker">Saved</div>
             <div className="tab-title">Keep the headlines worth revisiting close at hand.</div>
             <div className="tab-copy">
               Your saved stories turn PulseCast into a personal gaming briefing deck, ready for quick catch-up sessions and deal check-ins.
@@ -1477,7 +1446,7 @@ export default function Home() {
               <>
                 {showNewsHighlights && trending.length > 0 && (
                   <div className="trending">
-                    <div className="trending-label">Trending</div>
+                    <div className="trending-label">Now trending</div>
                     <div className="trending-pills">
                       {trending.map((word) => (
                         <button type="button" key={word} className="trending-pill" onClick={() => setSearchQuery(word)}>

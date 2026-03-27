@@ -463,11 +463,21 @@ export default function Home() {
   const [lastDismissedStory, setLastDismissedStory] = useState(null);
   const [lastClearedSaved, setLastClearedSaved] = useState([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false);
   const [isNewsSourceTrayOpen, setIsNewsSourceTrayOpen] = useState(false);
+  const [toast, setToast] = useState(null);
   const searchInputRef = useRef(null);
+  const contentRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
+  const toastIdRef = useRef(0);
   const seenLinksRef = useRef(new Set());
   const seenSocialIdsRef = useRef(new Set());
   const activeTabRef = useRef("News");
+  const scrollPositionsRef = useRef({
+    News: 0,
+    Social: 0,
+    Saved: 0,
+  });
 
   const mergedPreferences = { ...DEFAULT_PREFERENCES, ...preferences };
   const {
@@ -495,6 +505,25 @@ export default function Home() {
 
   useEffect(() => {
     activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      content.scrollTop = scrollPositionsRef.current[activeTab] || 0;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [activeTab]);
 
   const fetchNews = useEffectEvent(async () => {
@@ -577,11 +606,30 @@ export default function Home() {
     }
 
     function handleGlobalKeyDown(event) {
-      if (isSettingsOpen) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
       const searchInput = searchInputRef.current;
-      if (!searchInput) return;
+
+      if (event.key === "Escape" && isShortcutHelpOpen) {
+        event.preventDefault();
+        setIsShortcutHelpOpen(false);
+        return;
+      }
+
+      if (isSettingsOpen || isShortcutHelpOpen || !searchInput) return;
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+        return;
+      }
+
+      if ((event.key === "?" || (event.key === "/" && event.shiftKey)) && !isEditableTarget(event.target)) {
+        event.preventDefault();
+        setIsShortcutHelpOpen(true);
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (event.key === "/" && !isEditableTarget(event.target)) {
         event.preventDefault();
@@ -602,7 +650,43 @@ export default function Home() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isSettingsOpen, searchQuery]);
+  }, [isSettingsOpen, isShortcutHelpOpen, searchQuery]);
+
+  function showToast(message) {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
+    setToast({
+      id: toastIdRef.current + 1,
+      message,
+    });
+    toastIdRef.current += 1;
+
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, 2600);
+  }
+
+  function focusSearchInput() {
+    const searchInput = searchInputRef.current;
+    if (!searchInput) return;
+    searchInput.focus();
+    searchInput.select();
+  }
+
+  function clearSearch({ announce = false } = {}) {
+    if (!searchQuery) return;
+    setSearchQuery("");
+    if (announce) {
+      showToast("Search cleared");
+    }
+  }
+
+  function handleContentScroll(event) {
+    scrollPositionsRef.current[activeTabRef.current] = event.currentTarget.scrollTop;
+  }
 
   function switchTab(tab) {
     updatePreferences({
@@ -613,6 +697,7 @@ export default function Home() {
       socialFilter: "All",
     });
     setSearchQuery("");
+    setIsShortcutHelpOpen(false);
     if (tab !== "News") setIsNewsSourceTrayOpen(false);
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
@@ -631,65 +716,84 @@ export default function Home() {
   function handleDismissTopStory(story) {
     setDismissedStories((previous) => (previous.includes(story.link) ? previous : [...previous, story.link]));
     setLastDismissedStory(story);
+    showToast(`Hidden ${story.title}`);
   }
 
   function undoLastDismissedStory() {
     if (!lastDismissedStory) return;
     setDismissedStories((previous) => previous.filter((link) => link !== lastDismissedStory.link));
     setLastDismissedStory(null);
+    showToast("Top story restored");
   }
 
   function resetHiddenStories() {
+    if (!dismissedStories.length) return;
     setDismissedStories([]);
     setLastDismissedStory(null);
+    showToast("Hidden stories reset");
   }
 
   function toggleSave(article) {
+    const alreadySaved = savedArticles.some((savedArticle) => savedArticle.link === article.link);
+
     setSavedArticles((previous) => (
-      previous.some((savedArticle) => savedArticle.link === article.link)
+      alreadySaved
         ? previous.filter((savedArticle) => savedArticle.link !== article.link)
         : [...previous, { ...article, date: article.date?.toISOString?.() || article.date, savedAt: Date.now() }]
     ));
+    showToast(alreadySaved ? "Removed from reading list" : "Saved to reading list");
   }
 
   function clearSavedArticles() {
     if (!savedArticles.length) return;
     setLastClearedSaved(savedArticles);
     setSavedArticles([]);
+    showToast("Saved stories cleared");
   }
 
   function undoClearSavedArticles() {
     if (!lastClearedSaved.length) return;
     setSavedArticles(lastClearedSaved);
     setLastClearedSaved([]);
+    showToast("Saved stories restored");
   }
 
   function toggleMutedSource(source) {
+    const isMuted = mutedSources.includes(source);
+
     updatePreferences((previous) => ({
       mutedSources: previous.mutedSources.includes(source)
         ? previous.mutedSources.filter((name) => name !== source)
         : [...previous.mutedSources, source],
     }));
     setNewsRenderLimit(30);
+    showToast(isMuted ? `${source} restored` : `${source} muted`);
   }
 
   function toggleMutedAccount(handle) {
+    const isMuted = mutedAccounts.includes(handle);
+
     updatePreferences((previous) => ({
       mutedAccounts: previous.mutedAccounts.includes(handle)
         ? previous.mutedAccounts.filter((name) => name !== handle)
         : [...previous.mutedAccounts, handle],
     }));
     setSocialRenderLimit(30);
+    showToast(isMuted ? `@${handle} restored` : `@${handle} muted`);
   }
 
   function clearMutedSources() {
+    if (!mutedSources.length) return;
     updatePreferences({ mutedSources: [] });
     setNewsRenderLimit(30);
+    showToast("Muted news sources cleared");
   }
 
   function clearMutedAccounts() {
+    if (!mutedAccounts.length) return;
     updatePreferences({ mutedAccounts: [] });
     setSocialRenderLimit(30);
+    showToast("Muted Bluesky accounts cleared");
   }
 
   function addCustomIncludeKeyword(keyword) {
@@ -701,6 +805,7 @@ export default function Home() {
     }));
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
+    showToast(`Always keep "${normalizedKeyword}"`);
   }
 
   function removeCustomIncludeKeyword(keyword) {
@@ -709,6 +814,7 @@ export default function Home() {
     }));
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
+    showToast(`Removed keep phrase "${keyword}"`);
   }
 
   function addCustomExcludeKeyword(keyword) {
@@ -720,6 +826,7 @@ export default function Home() {
     }));
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
+    showToast(`Always hide "${normalizedKeyword}"`);
   }
 
   function removeCustomExcludeKeyword(keyword) {
@@ -728,6 +835,7 @@ export default function Home() {
     }));
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
+    showToast(`Removed hide phrase "${keyword}"`);
   }
 
   function restoreFilterDefaults() {
@@ -747,6 +855,35 @@ export default function Home() {
     setSearchQuery("");
     setNewsRenderLimit(30);
     setSocialRenderLimit(30);
+    setIsNewsSourceTrayOpen(false);
+    showToast("Filter defaults restored");
+  }
+
+  function resetNewsFilters() {
+    updatePreferences({
+      activeFilter: "All",
+      platformFilter: "All",
+      dealsOnly: false,
+    });
+    setIsNewsSourceTrayOpen(false);
+    setNewsRenderLimit(30);
+    showToast("News filters reset");
+  }
+
+  function resetSocialFilters() {
+    updatePreferences({
+      socialFilter: "All",
+    });
+    setSocialRenderLimit(30);
+    showToast("Social filters reset");
+  }
+
+  function turnOffGamingOnly() {
+    if (!gamingOnly) return;
+    updatePreferences({ gamingOnly: false });
+    setNewsRenderLimit(30);
+    setSocialRenderLimit(30);
+    showToast("Gaming-only filter turned off");
   }
 
   const platformSources = platformFilter === "All"
@@ -977,6 +1114,81 @@ export default function Home() {
       : null,
   ];
 
+  const newsEmptyActions = [
+    searchQuery
+      ? {
+          label: "Clear search",
+          onClick: () => clearSearch({ announce: true }),
+        }
+      : null,
+    activeFilter !== "All" || platformFilter !== "All" || dealsOnly
+      ? {
+          label: "Reset filters",
+          onClick: resetNewsFilters,
+        }
+      : null,
+    gamingOnly
+      ? {
+          label: "Show all topics",
+          onClick: turnOffGamingOnly,
+        }
+      : null,
+    mutedSources.length > 0
+      ? {
+          label: `Clear muted (${mutedSources.length})`,
+          onClick: clearMutedSources,
+        }
+      : null,
+  ];
+
+  const socialEmptyActions = [
+    searchQuery
+      ? {
+          label: "Clear search",
+          onClick: () => clearSearch({ announce: true }),
+        }
+      : null,
+    socialFilter !== "All"
+      ? {
+          label: "Reset channels",
+          onClick: resetSocialFilters,
+        }
+      : null,
+    gamingOnly
+      ? {
+          label: "Show all topics",
+          onClick: turnOffGamingOnly,
+        }
+      : null,
+    socialStatus.failures.length > 0
+      ? {
+          label: `Retry failed (${socialStatus.failures.length})`,
+          onClick: refreshSocialNow,
+        }
+      : null,
+    mutedAccounts.length > 0
+      ? {
+          label: `Clear muted (${mutedAccounts.length})`,
+          onClick: clearMutedAccounts,
+        }
+      : null,
+  ];
+
+  const savedEmptyActions = [
+    searchQuery
+      ? {
+          label: "Clear search",
+          onClick: () => clearSearch({ announce: true }),
+        }
+      : null,
+    !searchQuery && savedArticles.length === 0
+      ? {
+          label: "Browse news",
+          onClick: () => switchTab("News"),
+        }
+      : null,
+  ];
+
   return (
     <div className={`wrap ${pageModeClass}`}>
       <header>
@@ -986,7 +1198,16 @@ export default function Home() {
             <div className="tagline">Gaming News · Curated</div>
           </div>
           <div className="header-actions">
-            <button type="button" className={`settings-btn ${isSettingsOpen ? "active" : ""}`} onClick={() => setIsSettingsOpen(true)} title="Settings" aria-label="Open settings">
+            <button
+              type="button"
+              className={`settings-btn ${isSettingsOpen ? "active" : ""}`}
+              onClick={() => {
+                setIsShortcutHelpOpen(false);
+                setIsSettingsOpen(true);
+              }}
+              title="Settings"
+              aria-label="Open settings"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -1031,9 +1252,33 @@ export default function Home() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               aria-label="Search feeds"
-              title="Press / to focus search"
+              title="Press / or Cmd/Ctrl + K to focus search"
             />
-            {searchQuery && <button type="button" className="search-clear" onClick={() => setSearchQuery("")} aria-label="Clear search">x</button>}
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear"
+                onClick={() => clearSearch({ announce: true })}
+                aria-label="Clear search"
+              >
+                x
+              </button>
+            )}
+          </div>
+          <div className="search-meta">
+            <div className="search-hints" aria-hidden="true">
+              <span className="search-hint"><kbd>/</kbd><span>focus</span></span>
+              <span className="search-hint"><kbd>Cmd/Ctrl</kbd><kbd>K</kbd><span>search</span></span>
+            </div>
+            <button
+              type="button"
+              className="search-shortcuts-btn"
+              onClick={() => setIsShortcutHelpOpen(true)}
+              aria-label="Open keyboard shortcuts"
+            >
+              <span className="search-shortcuts-mark">?</span>
+              <span>Shortcuts</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1208,7 +1453,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="content">
+      <div ref={contentRef} className="content" onScroll={handleContentScroll}>
         {activeTab === "News" && (
           <>
             {isNewsLoading && articles.length === 0 ? (
@@ -1226,6 +1471,7 @@ export default function Home() {
                 title={searchQuery ? "No headlines matched that search." : gamingOnly ? "No headlines passed the current gaming filter." : "No headlines are available right now."}
                 copy={searchQuery ? "Try a broader query or clear a source/platform filter to widen the front page." : "The current source mix is quiet, filtered down, or still refreshing."}
                 hint={searchQuery ? "Clearing the search will bring the main feed back instantly." : "Try Refresh or open the source tray to loosen the selection."}
+                actions={newsEmptyActions}
               />
             ) : (
               <>
@@ -1331,6 +1577,7 @@ export default function Home() {
                 title={searchQuery ? "No social posts matched that search." : gamingOnly ? "No social posts passed the current gaming filter." : "No social posts are available right now."}
                 copy={searchQuery ? "Try a broader query or switch channel mixes to bring more posts into view." : "The current channel mix is filtered down, muted, or still refreshing."}
                 hint={searchQuery ? "Clearing the search will restore the full live stream." : "Check Bluesky Feed Health in Settings if accounts are failing."}
+                actions={socialEmptyActions}
               />
             ) : (
               <>
@@ -1372,6 +1619,7 @@ export default function Home() {
                 title={searchQuery ? "No saved stories matched that search." : "Your reading list is empty for now."}
                 copy={searchQuery ? "Try a broader query or switch the sort to scan your archive differently." : "Save any headline from News or Social and it will land here as your personal gaming backlog."}
                 hint={searchQuery ? "Clearing the search will restore the full archive." : "Saved stories keep their context, art, and source tags for later."}
+                actions={savedEmptyActions}
               />
             ) : (
               <>
@@ -1468,6 +1716,60 @@ export default function Home() {
         onClearSavedArticles={clearSavedArticles}
         onRestoreFilterDefaults={restoreFilterDefaults}
       />
+
+      {isShortcutHelpOpen && (
+        <div className="shortcut-backdrop" onClick={() => setIsShortcutHelpOpen(false)}>
+          <div
+            className="shortcut-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcut-help-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="shortcut-head">
+              <div>
+                <div className="shortcut-kicker">Keyboard</div>
+                <div id="shortcut-help-title" className="shortcut-title">Keyboard shortcuts</div>
+              </div>
+              <button
+                type="button"
+                className="shortcut-close"
+                onClick={() => setIsShortcutHelpOpen(false)}
+                aria-label="Close keyboard shortcuts"
+              >
+                x
+              </button>
+            </div>
+            <div className="shortcut-copy">A few quick keys to make PulseCast faster to use day to day.</div>
+            <div className="shortcut-list">
+              <div className="shortcut-row">
+                <div className="shortcut-keys"><kbd>/</kbd></div>
+                <div className="shortcut-desc">Focus the global search bar</div>
+              </div>
+              <div className="shortcut-row">
+                <div className="shortcut-keys"><kbd>Cmd</kbd><kbd>Ctrl</kbd><kbd>K</kbd></div>
+                <div className="shortcut-desc">Jump to search from anywhere in the app</div>
+              </div>
+              <div className="shortcut-row">
+                <div className="shortcut-keys"><kbd>Esc</kbd></div>
+                <div className="shortcut-desc">Clear search, blur the field, or close this panel</div>
+              </div>
+              <div className="shortcut-row">
+                <div className="shortcut-keys"><kbd>?</kbd></div>
+                <div className="shortcut-desc">Open this shortcut panel again</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="toast-stack" aria-live="polite" aria-atomic="true">
+          <div key={toast.id} className="toast" role="status">
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

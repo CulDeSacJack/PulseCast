@@ -49,13 +49,29 @@ export function FeedSkeleton({ mode = "news", title, detail, count = 3, showHero
   );
 }
 
-export function EmptyState({ mode = "news", label, title, copy, hint }) {
+export function EmptyState({ mode = "news", label, title, copy, hint, actions = [] }) {
+  const visibleActions = actions.filter(Boolean);
+
   return (
     <div className={`empty-panel ${mode}`}>
       <div className="empty-badge">{label}</div>
       <div className="empty-panel-title">{title}</div>
       {copy && <div className="empty-panel-copy">{copy}</div>}
       {hint && <div className="empty-panel-hint">{hint}</div>}
+      {visibleActions.length > 0 && (
+        <div className="empty-actions">
+          {visibleActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              className={`empty-action ${action.tone || ""}`.trim()}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

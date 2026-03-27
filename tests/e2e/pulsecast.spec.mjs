@@ -19,12 +19,23 @@ test("supports search, saving, and settings interactions", async ({ page }) => {
   await page.goto("/");
 
   const search = page.getByPlaceholder("Search headlines, summaries, and shared links...");
+  await expect(page.getByRole("button", { name: "Open keyboard shortcuts" })).toBeVisible();
+
   await page.keyboard.press("/");
   await expect(search).toBeFocused();
 
-  await search.fill("Mario Kart World");
-  await page.keyboard.press("Escape");
+  await page.keyboard.press("Control+K");
+  await expect(search).toBeFocused();
+
+  await search.fill("Definitely not a real PulseCast query");
+  await expect(page.getByText("No headlines matched that search.")).toBeVisible();
+  await page.locator(".empty-panel").getByRole("button", { name: "Clear search" }).click();
   await expect(search).toHaveValue("");
+
+  await page.getByRole("button", { name: "Open keyboard shortcuts" }).click();
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toHaveCount(0);
 
   await search.fill("Mario Kart World");
   await expect(page.getByText("Mario Kart World update adds mirror mode")).toBeVisible();
@@ -32,6 +43,7 @@ test("supports search, saving, and settings interactions", async ({ page }) => {
 
   const marioCard = page.locator("article").filter({ hasText: "Mario Kart World update adds mirror mode" });
   await marioCard.getByRole("button", { name: "SAVE" }).click();
+  await expect(page.getByText("Saved to reading list")).toBeVisible();
 
   await page.locator(".nav").getByRole("button", { name: "Saved" }).click();
   await expect(page.getByText("Mario Kart World update adds mirror mode")).toBeVisible();

@@ -218,7 +218,7 @@ header{padding:18px 20px 0}
 .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px}
 .section-copy{margin-top:4px;max-width:52ch;font-size:12px;line-height:1.55;color:var(--text2)}
 .top-stories{margin-bottom:22px}
-.ts-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.95fr);gap:10px}
+.ts-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.95fr);gap:10px;align-items:start}
 .ts-stack{display:flex;flex-direction:column;gap:10px}
 .ts-card{position:relative;overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,.07);background:linear-gradient(180deg,rgba(21,24,38,.98),rgba(13,15,24,.98));box-shadow:0 20px 40px rgba(0,0,0,.18)}
 .ts-card::before{content:"";position:absolute;inset:0;pointer-events:none}
